@@ -13,7 +13,7 @@ OpenCV 4.5.4
 以下のコマンドの意味が全部分からない場合は諦めてください
 一部分からない場合はgoogle先生に聞いてください
 ```
-git clone
+git clone https://github.com/niart120/Project_Xs.git
 cd ./Project_Xs
 ./env/Scripts/Activate.ps1
 python -m venv env

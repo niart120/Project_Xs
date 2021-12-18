@@ -29,25 +29,11 @@ def expr():
     if munch_eye is None:
         print("path is wrong")
         return
-    gombe_intervals, offset_time = rngtool.tracking_poke_blink(munch_eye, 730, 670, 50, 60)
+    gombe_intervals = rngtool.tracking_poke_blink(munch_eye, 730, 670, 50, 60)
 
     interval_prng = rngtool.recovByMunchlax(gombe_intervals)
     state = interval_prng.getState()
     print(hex(state[0]<<32|state[1]), hex(state[2]<<32|state[3]))
-
-    #prngの内部状態をswtichと同期させる
-    # while True:
-    #     r = interval_prng.next()
-    #     advances += 1
-
-    #     interval = randrange(r, 100, 370)/30 - 0.048
-    #     if time.time()<offset_time+interval:
-    #         waituntil = offset_time+interval
-    #         break
-    #     offset_time += interval
-
-    # next_time = waituntil - time.time() or 0
-    # time.sleep(next_time)
 
     #timecounter reset
     advances = 0

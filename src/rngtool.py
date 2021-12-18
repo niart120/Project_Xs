@@ -66,7 +66,7 @@ def tracking_blink(roi_x=905, roi_y=750, roi_w=55, roi_h=55)->Tuple[List[int],Li
         if state==CLOSING and time_counter - prev_time>0.7:
             state = IDLE
     cv2.destroyAllWindows()
-    return (blinks, intervals, offset_time)
+    return (blinks, intervals)
 
 def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, size = 60)->Tuple[List[int],List[int],float]:
     """measuring the type and interval of pokemon's blinks
@@ -121,7 +121,7 @@ def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, size = 60)->Tuple[List[
             state = IDLE
     cv2.destroyAllWindows()
     video.release()
-    return (intervals, offset_time)
+    return intervals
 
 def recov(blinks:List[int],intervals:List[int])->Xorshift:
     """

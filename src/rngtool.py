@@ -35,6 +35,8 @@ def tracking_blink(img, roi_x, roi_y, roi_w, roi_h)->Tuple[List[int],List[int],f
     prev_roi = None
     debug_txt = ""
 
+    offset_time = 0
+
     # 瞬きの観測
     while len(blinks)<40 or state!=IDLE:
         ret, frame = video.read()
@@ -53,6 +55,8 @@ def tracking_blink(img, roi_x, roi_y, roi_w, roi_h)->Tuple[List[int],List[int],f
                 interval = (time_counter - prev_time)/1.018
                 interval_round = round(interval)
                 intervals.append(interval_round)
+                if len(intervals)==40:
+                    offset_time = time_counter
 
                 #check interval 
                 check = " " if abs(interval-interval_round)<0.2 else "*"
@@ -72,7 +76,7 @@ def tracking_blink(img, roi_x, roi_y, roi_w, roi_h)->Tuple[List[int],List[int],f
             state = IDLE
             print(debug_txt)
     cv2.destroyAllWindows()
-    return (blinks, intervals)
+    return (blinks, intervals, offset_time)
 
 def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, size = 60)->Tuple[List[int],List[int],float]:
     """measuring the type and interval of pokemon's blinks
@@ -151,7 +155,7 @@ def recov(blinks:List[int],rawintervals:List[int])->Xorshift:
     assert all([o==e for o,e in paired])
 
     result = Xorshift(*states)
-    result.getNextRandSequence(len(intervals))
+    result.getNextRandSequence(advanced_frame)
     return result
 
 def recovByMunchlax(rawintervals:List[float])->Xorshift:

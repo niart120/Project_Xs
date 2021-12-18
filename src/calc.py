@@ -27,13 +27,13 @@ def getTrans():
 
     return trans
 
-def getS(intervals):
-    intervals = intervals[:32]
+def getS(intervals,rows = 39):
+    intervals = intervals[:rows]
     t = getTrans()
     t_ = getTrans()
 
-    s = np.zeros((128,128),"uint8")
-    for i in range(32):
+    s = np.zeros((4*rows,128),"uint8")
+    for i in range(rows):
         s[4*i:4*(i+1)] = t[-4:]
         for j in range(intervals[i]):
             t = t@t_%2
@@ -64,39 +64,40 @@ def getS_munchlax(intervals):
 
 def gauss_jordan(mat,observed:list):
     r,c = mat.shape
-    assert r==c
 
-    n = r
     bitmat = [list2bitvec(mat[i]) for i in range(r)]
 
     res = [d for d in observed]
     #forward elimination
     pivot = 0
-    for i in range(n):
+    for i in range(c):
         isfound = False
-        for j in range(i,n):
+        for j in range(i,r):
             if isfound:
-                check = 1<<(n-i-1)
+                check = 1<<(c-i-1)
                 if bitmat[j]&check==check:
                     bitmat[j] ^= bitmat[pivot]
                     res[j] ^= res[pivot]
             else:
-                check = 1<<(n-i-1)
+                check = 1<<(c-i-1)
                 if bitmat[j]&check==check:
                     isfound = True
                     bitmat[j],bitmat[pivot] = bitmat[pivot],bitmat[j]
                     res[j],res[pivot] = res[pivot],res[j]
         if isfound:
             pivot += 1
+    for i in range(c):
+        check = 1<<(c-i-1)
+        assert bitmat[i]&check>0
     
     #backward assignment
-    for i in range(1,n)[::-1]:
-        check = 1<<(n-i-1)
+    for i in range(1,c)[::-1]:
+        check = 1<<(c-i-1)
         for j in range(i)[::-1]:
             if bitmat[j]&check==check:
                 bitmat[j] ^= bitmat[i]
                 res[j] ^= res[i]
-    return res
+    return res[:c]
 
 def getInverse(mat):
     r,c = mat.shape
@@ -148,7 +149,7 @@ def reverseStates(rawblinks:list, intervals:list)->int:
     for b in rawblinks:
         blinks.extend([0,0,0])
         blinks.append(b)
-    blinks = blinks[:128]
+
     #print(blinks)
     s = getS(intervals)
     lst_result = gauss_jordan(s, blinks)

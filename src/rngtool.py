@@ -8,7 +8,7 @@ def randrange(r,mi,ma):
     t = (r & 0x7fffff) / 8388607.0
     return t * mi + (1.0 - t) * ma
 
-def tracking_blink(roi_x=905, roi_y=750, roi_w=55, roi_h=55)->Tuple[List[int],List[int],float]:
+def tracking_blink(img, roi_x=905, roi_y=750, roi_w=55, roi_h=55)->Tuple[List[int],List[int],float]:
     """measuring the type and interval of player's blinks
 
     Returns:
@@ -17,7 +17,7 @@ def tracking_blink(roi_x=905, roi_y=750, roi_w=55, roi_h=55)->Tuple[List[int],Li
     IDLE = 0xFF
     CLOSING = 0x0F
 
-    eye = cv2.imread("./trainer/eye.png",cv2.IMREAD_GRAYSCALE)
+    eye = img
     
     video = cv2.VideoCapture(0,cv2.CAP_DSHOW)
     video.set(cv2.CAP_PROP_FRAME_WIDTH,1920)

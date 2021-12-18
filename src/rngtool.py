@@ -4,18 +4,20 @@ import cv2
 from xorshift import Xorshift
 import calc
 
+IDLE = 0xFF
+SINGLE = 0xF0
+DOUBLE = 0xF1
+
 def randrange(r,mi,ma):
     t = (r & 0x7fffff) / 8388607.0
     return t * mi + (1.0 - t) * ma
 
-def tracking_blink(img, roi_x=905, roi_y=750, roi_w=55, roi_h=55)->Tuple[List[int],List[int],float]:
+def tracking_blink(img, roi_x, roi_y, roi_w, roi_h)->Tuple[List[int],List[int],float]:
     """measuring the type and interval of player's blinks
 
     Returns:
         blinks:List[int],intervals:list[int],offset_time:float: [description]
     """
-    IDLE = 0xFF
-    CLOSING = 0x0F
 
     eye = img
     
@@ -30,24 +32,22 @@ def tracking_blink(img, roi_x=905, roi_y=750, roi_w=55, roi_h=55)->Tuple[List[in
     prev_match = 0
     prev_time = 0
 
-    offset_time = 0
+    prev_roi = None
+    debug_txt = ""
 
     # 瞬きの観測
-    while len(blinks)<40 or state==CLOSING:
+    while len(blinks)<40 or state!=IDLE:
         ret, frame = video.read()
         time_counter = time.perf_counter()
         unix_time = time.time()
         roi = cv2.cvtColor(frame[roi_y:roi_y+roi_h,roi_x:roi_x+roi_w],cv2.COLOR_RGB2GRAY)
+        if (roi==prev_roi).all():continue
+        prev_roi = roi        
         res = cv2.matchTemplate(roi,eye,cv2.TM_CCOEFF_NORMED)
         _, match, _, _ = cv2.minMaxLoc(res)
-
-        delta = match - prev_match
-        prev_match = match
-        #cv2.imshow("",roi)
+        cv2.imshow("",roi)
         cv2.waitKey(1)
-        if 0.08<delta<0.5:
-            if len(blinks)==0:
-                offset_time = unix_time
+        if 0.01<match<0.85:
             if state==IDLE:
                 blinks.append(0)
                 interval = (time_counter - prev_time)/1.018
@@ -56,15 +56,21 @@ def tracking_blink(img, roi_x=905, roi_y=750, roi_w=55, roi_h=55)->Tuple[List[in
 
                 #check interval 
                 check = " " if abs(interval-interval_round)<0.2 else "*"
-                print(interval,check)
-
-                state = CLOSING
+                debug_txt = f"{interval}"+check
+                state = SINGLE
                 prev_time = time_counter
-            elif state==CLOSING:
-                blinks[-1] += 1
-                state = IDLE
-        if state==CLOSING and time_counter - prev_time>0.7:
+            elif state==SINGLE:
+                #doubleの判定
+                if time_counter - prev_time>0.3:
+                    blinks[-1] = 1
+                    debug_txt = debug_txt+"d"
+                    state = DOUBLE
+            elif state==DOUBLE:
+                pass
+            
+        if state!=IDLE and time_counter - prev_time>0.7:
             state = IDLE
+            print(debug_txt)
     cv2.destroyAllWindows()
     return (blinks, intervals)
 
@@ -74,8 +80,6 @@ def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, size = 60)->Tuple[List[
     Returns:
         intervals:list[int],offset_time:float: [description]
     """
-    IDLE = 0xFF
-    CLOSING = 0x0F
 
     eye = img
     
@@ -96,7 +100,6 @@ def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, size = 60)->Tuple[List[
     while len(intervals)<size:
         ret, frame = video.read()
         time_counter = time.perf_counter()
-        unix_time = time.time()
 
         roi = cv2.cvtColor(frame[roi_y:roi_y+roi_h,roi_x:roi_x+roi_w],cv2.COLOR_RGB2GRAY)
         if (roi==prev_roi).all():continue
@@ -105,25 +108,24 @@ def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, size = 60)->Tuple[List[
         res = cv2.matchTemplate(roi,eye,cv2.TM_CCOEFF_NORMED)
         _, match, _, _ = cv2.minMaxLoc(res)
 
-        if 0.4<match<0.9:
+        if 0.4<match<0.85:
             if len(intervals)==1:
                 offset_time = unix_time
             if state==IDLE:
                 interval = (time_counter - prev_time)
                 print(interval)
                 intervals.append(interval)
-                state = CLOSING
+                state = SINGLE
                 prev_time = time_counter
-            elif state==CLOSING:
-                if time_counter - prev_time>0.7:
-                    state = IDLE
-        if state==CLOSING and time_counter - prev_time>0.7:
+            elif state==SINGLE:
+                pass
+        if state!=IDLE and time_counter - prev_time>0.7:
             state = IDLE
     cv2.destroyAllWindows()
     video.release()
     return intervals
 
-def recov(blinks:List[int],intervals:List[int])->Xorshift:
+def recov(blinks:List[int],rawintervals:List[int])->Xorshift:
     """
     Recover the xorshift from the type and interval of blinks.
 
@@ -134,17 +136,22 @@ def recov(blinks:List[int],intervals:List[int])->Xorshift:
     Returns:
         List[int]: internalstate
     """
-    advanced_frame = sum(intervals[1:])
-    states = calc.reverseStates(blinks, intervals[1:])
+    intervals = rawintervals[1:]
+    advanced_frame = sum(intervals)
+    states = calc.reverseStates(blinks, intervals)
     prng = Xorshift(*states)
     states = prng.getState()
 
     #validation check
     expected_blinks = [r&0xF for r in prng.getNextRandSequence(advanced_frame) if r&0b1110==0]
-    assert all([o==e for (o,e) in zip(blinks,expected_blinks)])
+    paired = list(zip(blinks,expected_blinks))
+    print(blinks)
+    print(expected_blinks)
+    #print(paired)
+    assert all([o==e for o,e in paired])
 
     result = Xorshift(*states)
-    result.getNextRandSequence(len(rawintervals))
+    result.getNextRandSequence(len(intervals))
     return result
 
 def recovByMunchlax(rawintervals:List[float])->Xorshift:

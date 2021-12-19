@@ -160,7 +160,7 @@ def recov(blinks:List[int],rawintervals:List[int])->Xorshift:
     result.getNextRandSequence(advanced_frame)
     return result
 
-def reidentifyByBlinks(rng:Xorshift, observed_blinks:List[int], search_min=0, search_max=10**6)->Xorshift:
+def reidentifyByBlinks(rng:Xorshift, observed_blinks:List[int], search_max=10**6, search_min=0)->Xorshift:
     if search_max<search_min:
         search_min, search_max = search_max, search_min
     search_range = search_max - search_min
@@ -196,9 +196,10 @@ def reidentifyByBlinks(rng:Xorshift, observed_blinks:List[int], search_min=0, se
 
     #search
     search_blinks = calc.list2bitvec(observed_blinks)
-    result = Xorshift(rng.getState())
+    result = Xorshift(*rng.getState())
     for idx, blinks in expected_blinks_lst:
         if search_blinks==blinks and search_min <= idx:
+            print(f"found in advances:{idx}")
             result.getNextRandSequence(idx)
             return result
 

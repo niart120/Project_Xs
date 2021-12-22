@@ -21,3 +21,26 @@ python -m venv env
 pip install -r requirements.txt
 python ./src/tidsid.py
 ```
+
+(English ver, using DeepL)
+## What's this?
+Recover internal state of Xorshift from Munchlax's blink.
+
+This is experimental version.  It does not work well as it is, so please modify it by yourself.
+
+## Environment
+Python 3.9.6 (Probably works with Python 3.7 and above.)
+OpenCV 4.5.4
+
+## How to run
+It is not recommended to run if you do not understand the following command.
+If you don't understand some of them, google it.
+
+```
+git clone https://github.com/niart120/Project_Xs.git
+cd ./Project_Xs
+./env/Scripts/Activate.ps1
+python -m venv env
+pip install -r requirements.txt
+python ./src/tidsid.py
+```

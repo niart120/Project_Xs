@@ -11,7 +11,7 @@ class Xorshift(object):
         s2 = self.z
         s3 = self.w
 
-        tmp = s0 ^ s0 << 11 & 0xFFFFFFFF
+        t = s0 ^ s0 << 11 & 0xFFFFFFFF
         self.x = s1
         self.y = s2
         self.z = s3

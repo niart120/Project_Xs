@@ -16,7 +16,7 @@ def randrange(r,mi,ma):
     t = (r & 0x7fffff) / 8388607.0
     return t * mi + (1.0 - t) * ma
 
-def tracking_blink(img, roi_x, roi_y, roi_w, roi_h, size = 40)->Tuple[List[int],List[int],float]:
+def tracking_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.9, size = 40)->Tuple[List[int],List[int],float]:
     """measuring the type and interval of player's blinks
 
     Returns:
@@ -52,7 +52,10 @@ def tracking_blink(img, roi_x, roi_y, roi_w, roi_h, size = 40)->Tuple[List[int],
         res = cv2.matchTemplate(roi,eye,cv2.TM_CCOEFF_NORMED)
         _, match, _, _ = cv2.minMaxLoc(res)
 
-        if 0.01<match<0.85:
+        cv2.imshow("",roi)
+        cv2.waitKey(1)
+
+        if 0.01<match<th:
             if state==IDLE:
                 blinks.append(0)
                 interval = (time_counter - prev_time)/1.018
@@ -160,7 +163,7 @@ def recov(blinks:List[int],rawintervals:List[int])->Xorshift:
     result.getNextRandSequence(advanced_frame)
     return result
 
-def reidentifyByBlinks(rng:Xorshift, observed_blinks:List[int], search_max=10**6, search_min=0)->Xorshift:
+def reidentifyByBlinks(rng:Xorshift, observed_blinks:List[int], npc = 0, search_max=10**6, search_min=0)->Xorshift:
     if search_max<search_min:
         search_min, search_max = search_max, search_min
     search_range = search_max - search_min
@@ -168,40 +171,41 @@ def reidentifyByBlinks(rng:Xorshift, observed_blinks:List[int], search_max=10**6
     if 2**observed_len < search_range:
         return None
 
-    identify_rng = Xorshift(*rng.getState())
-    rands = [(i, r&0xF) for i,r in enumerate(identify_rng.getNextRandSequence(search_max))]
-    blinkrands = [(i, r) for i,r in rands if r&0b1110==0]
+    for d in range(1+npc):
+        identify_rng = Xorshift(*rng.getState())
+        rands = [(i, r&0xF) for i,r in list(enumerate(identify_rng.getNextRandSequence(search_max)))[d::1+npc]]
+        blinkrands = [(i, r) for i,r in rands if r&0b1110==0]
 
-    #prepare
-    expected_blinks_lst = []
-    expected_blinks = 0
-    lastblink_idx = -1
-    mask = (1<<observed_len)-1
-    for idx, r in blinkrands[:observed_len]:
-        lastblink_idx = idx
+        #prepare
+        expected_blinks_lst = []
+        expected_blinks = 0
+        lastblink_idx = -1
+        mask = (1<<observed_len)-1
+        for idx, r in blinkrands[:observed_len]:
+            lastblink_idx = idx
 
-        expected_blinks <<= 1
-        expected_blinks |= r
-
-    expected_blinks_lst.append((lastblink_idx, expected_blinks))
-
-    for idx, r in blinkrands[observed_len:]:
-        lastblink_idx = idx
-
-        expected_blinks <<= 1
-        expected_blinks |= r
-        expected_blinks &= mask
+            expected_blinks <<= 1
+            expected_blinks |= r
 
         expected_blinks_lst.append((lastblink_idx, expected_blinks))
 
-    #search
-    search_blinks = calc.list2bitvec(observed_blinks)
-    result = Xorshift(*rng.getState())
-    for idx, blinks in expected_blinks_lst:
-        if search_blinks==blinks and search_min <= idx:
-            print(f"found in advances:{idx}")
-            result.getNextRandSequence(idx)
-            return result
+        for idx, r in blinkrands[observed_len:]:
+            lastblink_idx = idx
+
+            expected_blinks <<= 1
+            expected_blinks |= r
+            expected_blinks &= mask
+
+            expected_blinks_lst.append((lastblink_idx, expected_blinks))
+
+        #search
+        search_blinks = calc.list2bitvec(observed_blinks)
+        result = Xorshift(*rng.getState())
+        for idx, blinks in expected_blinks_lst:
+            if search_blinks==blinks and search_min <= idx:
+                print(f"found  at advances:{idx}, d={d}")
+                result.getNextRandSequence(idx)
+                return result
 
     return None
 

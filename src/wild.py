@@ -4,12 +4,14 @@ import cv2
 import time
 from xorshift import Xorshift
 
+imgpath = "./trainer/trophygarden/eye.png"
+
 def expr():
-    player_eye = cv2.imread("./trainer/ruins/eye.png", cv2.IMREAD_GRAYSCALE)
+    player_eye = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
     if player_eye is None:
         print("path is wrong")
         return
-    blinks, intervals, offset_time = rngtool.tracking_blink(player_eye, 910, 485, 50, 60)
+    blinks, intervals, offset_time = rngtool.tracking_blink(player_eye, 930, 510, 30, 30)
     prng = rngtool.recov(blinks, intervals)
 
     waituntil = time.perf_counter()
@@ -39,11 +41,11 @@ def expr():
         time.sleep(next_time)
 
 def firstspecify():
-    player_eye = cv2.imread("./trainer/ruins/eye.png", cv2.IMREAD_GRAYSCALE)
+    player_eye = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
     if player_eye is None:
         print("path is wrong")
         return
-    blinks, intervals, offset_time = rngtool.tracking_blink(player_eye, 910, 485, 50, 60)
+    blinks, intervals, offset_time = rngtool.tracking_blink(player_eye, 930, 510, 30, 30)
     prng = rngtool.recov(blinks, intervals)
 
     waituntil = time.perf_counter()
@@ -60,16 +62,16 @@ def reidentify():
     print("input xorshift state(state[0] state[1] state[2] state[3])")
     state = [int(x,0) for x in input().split()]
 
-    player_eye = cv2.imread("./trainer/ruins/eye.png", cv2.IMREAD_GRAYSCALE)
+    player_eye = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
     if player_eye is None:
         print("path is wrong")
         return
 
-    observed_blinks, _, offset_time = rngtool.tracking_blink(player_eye, 910, 485, 50, 60,size=20)
+    observed_blinks, _, offset_time = rngtool.tracking_blink(player_eye, 930, 505, 30, 30,size=20)
     reidentified_rng = rngtool.reidentifyByBlinks(Xorshift(*state), observed_blinks)
     
     waituntil = time.perf_counter()
-    diff = round(waituntil-offset_time)+1
+    diff = -((waituntil-offset_time)//(-1))
     reidentified_rng.getNextRandSequence(diff)
 
     state = reidentified_rng.getState()
@@ -81,7 +83,7 @@ def reidentify():
     #timecounter reset
     advances = 0
     wild_prng = Xorshift(*reidentified_rng.getState())
-    isUnown = True
+    isUnown = False
     wild_prng.getNextRandSequence(2+isUnown)
 
     advances = 0

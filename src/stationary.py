@@ -135,8 +135,8 @@ def stationary_timeline():
             print(f"advances:{advances}, blink:{hex(r&0xF)}")
             heapq.heappush(queue, (w+1.017, 0))
         else:
-            #blink_int = reidentified_rng.range(3.0, 12.0) + 0.3
-            blink_int = reidentified_rng.rangefloat(3,12) + 0.3
+            #blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
+            blink_int = reidentified_rng.rangefloat(3,12) + 0.285
 
             heapq.heappush(queue, (w+blink_int, 1))
             print(f"advances:{advances}, interval:{blink_int}")

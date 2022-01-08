@@ -33,7 +33,7 @@ def tracking_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.9, size = 40)->Tuple[
     state = IDLE
     blinks = []
     intervals = []
-    prev_time = 0
+    prev_time = time.perf_counter()
 
     prev_roi = None
     debug_txt = ""
@@ -115,7 +115,8 @@ def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, size = 60)->Tuple[List[
         if (roi==prev_roi).all():
             continue
         prev_roi = roi
-
+        cv2.imshow("",roi)
+        cv2.waitKey(1)
         res = cv2.matchTemplate(roi,eye,cv2.TM_CCOEFF_NORMED)
         _, match, _, _ = cv2.minMaxLoc(res)
 

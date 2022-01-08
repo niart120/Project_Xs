@@ -45,12 +45,11 @@ def getS_munchlax(intervals):
     t = getTrans()
     t_ = getTrans()
 
-    s = np.zeros((128,128),"uint8")
+    s = np.zeros((144,128),"uint8")
     safe_intervals = []
-    for i in range(32):
+    for i in range(36):
         #intervals[-1]を挿入した際のインデックスが奇数だと危険な値の可能性がある
         is_carriable = bisect(section,intervals[-1])%2==1
-
         while is_carriable:
             #スキップする
             t = t@t_%2
@@ -86,6 +85,7 @@ def gauss_jordan(mat,observed:list):
                     res[j],res[pivot] = res[pivot],res[j]
         if isfound:
             pivot += 1
+
     for i in range(c):
         check = 1<<(c-i-1)
         assert bitmat[i]&check>0

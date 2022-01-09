@@ -27,6 +27,8 @@ class Xorshift(object):
 
         t = s2 >> 19 ^ s2 ^ s3
         t ^= t >> 8
+        t ^= t >> 16
+        
         t ^= t << 11 & 0xFFFFFFFF
         t ^= t << 22 & 0xFFFFFFFF
 

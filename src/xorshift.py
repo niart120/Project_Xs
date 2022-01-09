@@ -40,7 +40,7 @@ class Xorshift(object):
         return self.w
 
     def advances(self,length:int):
-        self.getNextRandSequence(self)
+        self.getNextRandSequence(length)
 
     def range(self,mi:int,ma:int)->int:
         """generate random integer value in [mi,ma)

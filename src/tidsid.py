@@ -13,16 +13,17 @@ def getids(r):
     tid,sid = r&0xFFFF, r>>16
     return g7tid, tid, sid
 
-def generate_dangerintervals_list(k):
+def generate_dangerintervals_list(k,eps):
     lst = []
     for b in range(1<<k):
         b<<=(23-k)
         t = randrange(b, 100, 370)/30
-        lst.append(t+0.1)
-        lst.append(t-0.1)
-    lst.append(100/30+0.1)
+        lst.append(t+eps)
+        lst.append(t-eps)
+    lst.append(100/30+eps)
     lst.append(0)
     print(lst[::-1])
+    return lst[::-1]
 
 def expr():
     munch_eye = cv2.imread("./munchlax/eye.png", cv2.IMREAD_GRAYSCALE)

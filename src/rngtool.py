@@ -81,7 +81,7 @@ def tracking_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.9, size = 40)->Tuple[
 
         if state!=IDLE and time_counter - prev_time>0.7:
             state = IDLE
-            print(debug_txt)
+            print(debug_txt, len(blinks))
     cv2.destroyAllWindows()
     return (blinks, intervals, offset_time)
 

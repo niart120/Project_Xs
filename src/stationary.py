@@ -119,8 +119,8 @@ def stationary_timeline():
     queue = []
     heapq.heappush(queue, (waituntil+1.017,0))
 
-    #blink_int = reidentified_rng.range(3.0, 12.0) + 0.3
-    blink_int = reidentified_rng.rangefloat(3,12) + 0.3
+    #blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
+    blink_int = reidentified_rng.rangefloat(3,12) + 0.285
 
     heapq.heappush(queue, (waituntil+blink_int,1))
     while queue:

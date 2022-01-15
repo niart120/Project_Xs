@@ -104,6 +104,45 @@ def reidentify():
         next_time = waituntil - time.perf_counter() or 0
         time.sleep(next_time)
 
+def reidentifyInSecretBase():
+    print("input xorshift state(state[0] state[1] state[2] state[3])")
+    state = [int(x,0) for x in input().split()]
+    imgpath = "./trainer/secretbase/eye.png"
+    player_eye = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
+    if player_eye is None:
+        print("path is wrong")
+        return
+    blinks, observed_intervals, offset_time = rngtool.tracking_blink(player_eye, 870, 680, 85, 90, size=6)
+    reidentified_rng = rngtool.reidentifyByIntervals(Xorshift(*state), observed_intervals, npc=0)
+    if reidentified_rng is None:
+        print("couldn't reidentify state.")
+        return
+
+    waituntil = time.perf_counter()
+    diff = int(-(-(waituntil-offset_time)//1))
+    print(diff, waituntil-offset_time)
+    reidentified_rng.advances(max(diff,0))
+
+    state = reidentified_rng.getState()
+    print("state(64bit 64bit)")
+    print(hex(state[0]<<32|state[1]), hex(state[2]<<32|state[3]))
+    print("state(32bit 32bit 32bit 32bit)")
+    print(*[hex(s) for s in state])
+
+    #timecounter reset
+    advances = 0
+    waituntil = time.perf_counter()
+    time.sleep(diff - (waituntil - offset_time))
+
+    while True:
+        advances += 1
+        r = reidentified_rng.next()
+        waituntil += 1.017        
+        
+        next_time = waituntil - time.perf_counter() or 0
+        time.sleep(next_time)
+        print(f"advances:{advances}, blink:{hex(r&0xF)}")
+
 if __name__ == "__main__":
     #firstspecify()
-    reidentify()
+    reidentifyInSecretBase()

@@ -165,6 +165,19 @@ def recov(blinks:List[int],rawintervals:List[int])->Xorshift:
     return result
 
 def reidentifyByBlinks(rng:Xorshift, observed_blinks:List[int], npc = 0, search_max=10**6, search_min=0)->Xorshift:
+    """reidentify Xorshift state by type of observed blinks.
+
+    Args:
+        rng (Xorshift): identified rng
+        observed_blinks (List[int]): 
+        npc (int, optional): num of npcs. Defaults to 0.
+        search_max (int, optional): . Defaults to 10**6.
+        search_min (int, optional): . Defaults to 0.
+
+    Returns:
+        Xorshift: reidentified rng
+    """
+    
     if search_max<search_min:
         search_min, search_max = search_max, search_min
     search_range = search_max - search_min
@@ -209,6 +222,72 @@ def reidentifyByBlinks(rng:Xorshift, observed_blinks:List[int], npc = 0, search_
                 return result
 
     return None
+
+def reidentifyByIntervals(rng:Xorshift, rawintervals:List[int], npc = 0, search_max=10**6, search_min=0)->Xorshift:
+    """reidentify Xorshift state by intervals of observed blinks. 
+    This method is faster than "reidentifyByBlinks" in most cases since it can be reidentified by less blinking.
+
+    Args:
+        rng (Xorshift): [description]
+        rawintervals (List[int]): list of intervals of blinks. 6 or more is recommended.
+        npc (int, optional): [description]. Defaults to 0.
+        search_max ([type], optional): [description]. Defaults to 10**6.
+        search_min (int, optional): [description]. Defaults to 0.
+
+    Returns:
+        Xorshift: [description]
+    """
+    intervals = rawintervals[1:]
+    if search_max<search_min:
+        search_min, search_max = search_max, search_min
+    search_range = search_max - search_min
+    observed_len = sum(intervals)+1
+
+    for d in range(1+npc):
+        identify_rng = Xorshift(*rng.getState())
+        blinkrands = [(i, int((r&0b1110)==0)) for i,r in list(enumerate(identify_rng.getNextRandSequence(search_max)))[d::1+npc]]
+
+        #prepare
+
+
+
+        expected_blinks_lst = []
+        expected_blinks = 0
+        lastblink_idx = -1
+        mask = (1<<observed_len)-1
+        for idx, r in blinkrands[:observed_len]:
+            lastblink_idx = idx
+
+            expected_blinks <<= 1
+            expected_blinks |= r
+
+        expected_blinks_lst.append((lastblink_idx, expected_blinks))
+
+        for idx, r in blinkrands[observed_len:]:
+            lastblink_idx = idx
+
+            expected_blinks <<= 1
+            expected_blinks |= r
+            expected_blinks &= mask
+
+            expected_blinks_lst.append((lastblink_idx, expected_blinks))
+
+        #search preparation
+        search_blinks = 1
+        for i in intervals:
+            search_blinks <<= i
+            search_blinks |= 1
+
+        #search
+        result = Xorshift(*rng.getState())
+        for idx, blinks in expected_blinks_lst:
+            if search_blinks==blinks and search_min <= idx:
+                print(f"found  at advances:{idx}, d={d}")
+                result.getNextRandSequence(idx)
+                return result
+
+    return None
+
 
 def recovByMunchlax(rawintervals:List[float])->Xorshift:
     """Recover the xorshift from the interval of Munchlax blinks.

@@ -112,7 +112,7 @@ def reidentifyInSecretBase():
     if player_eye is None:
         print("path is wrong")
         return
-    blinks, observed_intervals, offset_time = rngtool.tracking_blink(player_eye, 870, 680, 85, 90, size=6)
+    blinks, observed_intervals, offset_time = rngtool.tracking_blink(player_eye, 870, 680, 85, 90, size=7)
     reidentified_rng = rngtool.reidentifyByIntervals(Xorshift(*state), observed_intervals, npc=0)
     if reidentified_rng is None:
         print("couldn't reidentify state.")

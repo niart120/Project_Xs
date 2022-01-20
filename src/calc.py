@@ -39,21 +39,61 @@ def getS(intervals,rows = 39):
             t = t@t_%2
     return s
 
-def getS_munchlax(intervals):
+def generate_dangerintervals_list(k:int,eps:float,latency:float):
+    """Generate a list to exclude values that may cause errors in calculations(getS_munchlax).
+
+    Args:
+        k (int): Amount of information to be acquired in a single blink (bits)
+        eps (float): Acceptable observation error(seconds)
+        latency (float): Capture card (web camera) latency
+
+    Returns:
+        [type]: [description]
+    """
+    lst = []
+    for b in range(1<<k):
+        b<<=(23-k)
+        tmp = (b & 0x7fffff) / 8388607.0
+        t = (tmp * 3.0 + (1.0 - tmp) * 12.0) + latency
+        lst.append(t+eps)
+        lst.append(t-eps)
+    lst.append(3.0+eps+latency)
+    lst.append(0)
+    lst = lst[::-1]
+    lst.pop()
+    return lst
+
+def getS_munchlax(intervals, k:int = 4, eps:float = 0.1, latency:float = 10/30):
+    """
+    Generate a matrix S to be used in the calculation of the internal state recovery.
+    Note: 
+    The parameters k, eps, and latency should be changed according to your environment.
+    To be more precise, when the value of eps is high (e.g. eps>0.15), it is recommended to decrease the value of k. In this case, we need to observe more blinks (len(intervals)>100 is better).
+
+    Args:
+        intervals (list): list of intervals of munchlax blinks
+        k (int, optional): Amount of information to be acquired in a single blink (bits). Defaults to 4.
+        eps (float, optional): Acceptable observation error(seconds). Defaults to 0.1.
+        latency (float, optional): blink latency. Defaults to 10/30.
+
+    Returns:
+        [type]: [description]
+    """
     intervals = intervals[::-1]
-    section = [0, 3.4333333333333336, 3.795832327504833, 3.995832327504833, 4.358332394560066, 4.558332394560066, 4.9208324616153, 5.120832461615299, 5.483332528670533, 5.683332528670532, 6.045832595725767, 6.2458325957257665, 6.608332662781, 6.808332662780999, 7.170832729836233, 7.370832729836232, 7.733332796891467, 7.933332796891467, 8.2958328639467, 8.4958328639467, 8.858332931001934, 9.058332931001933, 9.420832998057167, 9.620832998057166, 9.9833330651124, 10.1833330651124, 10.545833132167635, 10.745833132167634, 11.108333199222866, 11.308333199222865, 11.6708332662781, 11.8708332662781, 12.233333333333334,]
+    #section = [0, 3.4333333333333336, 3.795832327504833, 3.995832327504833, 4.358332394560066, 4.558332394560066, 4.9208324616153, 5.120832461615299, 5.483332528670533, 5.683332528670532, 6.045832595725767, 6.2458325957257665, 6.608332662781, 6.808332662780999, 7.170832729836233, 7.370832729836232, 7.733332796891467, 7.933332796891467, 8.2958328639467, 8.4958328639467, 8.858332931001934, 9.058332931001933, 9.420832998057167, 9.620832998057166, 9.9833330651124, 10.1833330651124, 10.545833132167635, 10.745833132167634, 11.108333199222866, 11.308333199222865, 11.6708332662781, 11.8708332662781, 12.233333333333334,]
+    section = generate_dangerintervals_list(k, eps, latency)
     t = getTrans()
     t_ = getTrans()
 
-    s = np.zeros((144,128),"uint8")
+    s = np.zeros((144, 128),"uint8")
     safe_intervals = []
-    for i in range(36):
-        #intervals[-1]を挿入した際のインデックスが奇数だと危険な値の可能性がある
+    for i in range(144//k):
+        #If the index is an odd number when intervals[-1] is inserted, it could be a dangerous (it might cause carrying) value.
         is_carriable = bisect(section,intervals[-1])%2==1
         while is_carriable:
-            #スキップする
+            #skipped
             t = t@t_%2
-            #危険な値を除外
+            #eliminate danger value
             intervals.pop()
             is_carriable = bisect(section,intervals[-1])%2==1
         s[4*i:4*(i+1)] = t[105:109]

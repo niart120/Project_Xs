@@ -5,14 +5,14 @@ import time
 from xorshift import Xorshift
 import heapq
 
-imgpath = "./trainer/lake/eye.png"
+imgpath = "./trainer/spearpillar/eye.png"
 
 def firstspecify():
     player_eye = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
     if player_eye is None:
         print("path is wrong")
         return
-    blinks, intervals, offset_time = rngtool.tracking_blink(player_eye, 925, 490, 35, 35)
+    blinks, intervals, offset_time = rngtool.tracking_blink(player_eye, 935,505,25,30)
     prng = rngtool.recov(blinks, intervals)
 
     waituntil = time.perf_counter()
@@ -28,14 +28,15 @@ def firstspecify():
 def reidentify():
     print("input xorshift state(state[0] state[1] state[2] state[3])")
     state = [int(x,0) for x in input().split()]
+    imgpath = "./trainer/halloforigin/eye.png"
     player_eye = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
     if player_eye is None:
         print("path is wrong")
         return
 
-    observed_blinks, observed_intervals, offset_time = rngtool.tracking_blink(player_eye, 925, 490, 35, 35,size=6)
+    observed_blinks, observed_intervals, offset_time = rngtool.tracking_blink(player_eye, 925, 480, 30, 40,size=20)
     #reidentified_rng = rngtool.reidentifyByBlinks(Xorshift(*state), observed_blinks)
-    reidentified_rng = rngtool.reidentifyByIntervals(Xorshift(*state), observed_intervals)
+    reidentified_rng = rngtool.reidentifyByIntervalsNoisy(Xorshift(*state), observed_intervals)
     if reidentified_rng is None:
         print("couldn't reidentify state.")
         return
@@ -59,7 +60,6 @@ def reidentify():
     while True:
         advances += 1
         r = reidentified_rng.next()
-        wild_r = stat_prng.next()
 
         waituntil += 1.017        
         
@@ -70,14 +70,15 @@ def reidentify():
 def stationary_timeline():
     print("input xorshift state(state[0] state[1] state[2] state[3])")
     state = [int(x,0) for x in input().split()]
+    imgpath = "./trainer/halloforigin/eye.png"
     player_eye = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
     if player_eye is None:
         print("path is wrong")
         return
 
-    observed_blinks, observed_intervals, offset_time = rngtool.tracking_blink(player_eye, 925, 490, 35, 35,size=6)
-    #reidentified_rng = rngtool.reidentifyByBlinks(Xorshift(*state), observed_blinks)
-    reidentified_rng = rngtool.reidentifyByIntervals(Xorshift(*state), observed_intervals)
+    observed_blinks, observed_intervals, offset_time = rngtool.tracking_blink(player_eye, 925, 480, 30, 40,size=20)
+    reidentified_rng = rngtool.reidentifyByIntervalsNoisy(Xorshift(*state), observed_intervals)
+
     if reidentified_rng is None:
         print("couldn't reidentify state.")
         return
@@ -92,35 +93,13 @@ def stationary_timeline():
     print("state(32bit 32bit 32bit 32bit)")
     print(*[hex(s) for s in state])
 
+    queue = []
     #timecounter reset
-
-    advances = 0
+    advances = 1
     waituntil = time.perf_counter()
     time.sleep(diff - (waituntil - offset_time))
-
-    for _ in [0]*20:
-        advances += 1
-        r = reidentified_rng.next()
-
-        waituntil += 1.017
-        
-        next_time = waituntil - time.perf_counter() or 0
-        time.sleep(next_time)
-        print(f"advances:{advances}, blink:{hex(r&0xF)}")
-
-    print("enter the stationary symbol room")
-    #rng blankread
-    reidentified_rng.next()
-    advances+=1
-    #whiteout
-    time.sleep(2.0)
-    waituntil = time.perf_counter()
-    queue = []
-
     #timeline prepare
-
     blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
-    #blink_int = reidentified_rng.rangefloat(3,12) + 0.285
     heapq.heappush(queue, (waituntil+blink_int,1))
 
     #_ = reidentified_rng.next()
@@ -139,11 +118,8 @@ def stationary_timeline():
             heapq.heappush(queue, (w+1.017, 0))
         else:
             blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
-            #blink_int = reidentified_rng.rangefloat(3,12) + 0.285
-
             heapq.heappush(queue, (w+blink_int, 1))
             print(f"advances:{advances}, interval:{blink_int}")
-
 if __name__ == "__main__":
     #firstspecify()
     #reidentify()

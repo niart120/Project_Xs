@@ -8,6 +8,7 @@ import cv2
 from xorshift import Xorshift
 import calc
 from collections import Counter
+import math
 
 IDLE = 0xFF
 SINGLE = 0xF0
@@ -17,7 +18,7 @@ def randrange(r,mi,ma):
     t = (r & 0x7fffff) / 8388607.0
     return t * mi + (1.0 - t) * ma
 
-def tracking_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.9, size = 40)->Tuple[List[int],List[int],float]:
+def tracking_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.9, size = 40, cameraID = 0)->Tuple[List[int],List[int],float]:
     """measuring the type and interval of player's blinks
 
     Returns:
@@ -26,7 +27,7 @@ def tracking_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.9, size = 40)->Tuple[
 
     eye = img
 
-    video = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+    video = cv2.VideoCapture(cameraID, cv2.CAP_DSHOW)
     video.set(cv2.CAP_PROP_FRAME_WIDTH,1920)
     video.set(cv2.CAP_PROP_FRAME_HEIGHT,1080)
     video.set(cv2.CAP_PROP_BUFFERSIZE,1)
@@ -86,16 +87,17 @@ def tracking_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.9, size = 40)->Tuple[
     cv2.destroyAllWindows()
     return (blinks, intervals, offset_time)
 
-def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.85, size = 60)->Tuple[List[int],List[int],float]:
+def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.85, size = 64, cameraID = 0)->Tuple[List[float], float]:
     """measuring the interval of pokemon's blinks
 
     Returns:
-        intervals:list[int],offset_time:float: [description]
+        intervals:list[float]
+        offset_time:
     """
 
     eye = img
     
-    video = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+    video = cv2.VideoCapture(cameraID, cv2.CAP_DSHOW)
     video.set(cv2.CAP_PROP_FRAME_WIDTH,1920)
     video.set(cv2.CAP_PROP_FRAME_HEIGHT,1080)
     video.set(cv2.CAP_PROP_BUFFERSIZE,1)
@@ -106,8 +108,10 @@ def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.85, size = 60)->
     prev_roi = None
     prev_time = time.perf_counter()
 
+    offset_time = 0
 
     # observe blinks
+    count = 0
     while len(intervals)<size:
         _, frame = video.read()
         time_counter = time.perf_counter()
@@ -120,21 +124,26 @@ def tracking_poke_blink(img, roi_x, roi_y, roi_w, roi_h, th = 0.85, size = 60)->
         cv2.waitKey(1)
         res = cv2.matchTemplate(roi,eye,cv2.TM_CCOEFF_NORMED)
         _, match, _, _ = cv2.minMaxLoc(res)
-
-        if 0.4<match<th:
+        #print(match)
+        if 0.1<match and match<th:
             if state==IDLE:
                 interval = (time_counter - prev_time)
-                print(interval)
+                count += 1
+                print(f"blinks:{count}/{size}, interval:{interval}")
                 intervals.append(interval)
                 state = SINGLE
                 prev_time = time_counter
+
+                if len(intervals)==size:
+                    offset_time = time_counter
             elif state==SINGLE:
                 pass
         if state!=IDLE and time_counter - prev_time>0.7:
             state = IDLE
     cv2.destroyAllWindows()
     video.release()
-    return intervals
+
+    return intervals, offset_time
 
 def simultaneous_tracking(plimg, plroi:Tuple[int,int,int,int], pkimg, pkroi:Tuple[int,int,int,int], plth=0.88, pkth=0.999185, size=8)->Tuple[List[int],List[int],float]:
     """measuring type/intervals of player's blinks  and the interval of pokemon's blinks
@@ -387,6 +396,100 @@ def reidentifyByIntervals(rng:Xorshift, rawintervals:List[int], npc = 0, th = 0,
 
     return None
 
+def reidentifyByIntervalsNoisy(rng:Xorshift, rawintervals:List[int],search_max = 10**5, search_min = 0)->Tuple[Xorshift,float]:
+    blinktime = 0.285
+    
+    pl_intervals = tuple(rawintervals[1:])
+    n = len(pl_intervals)
+
+    #search
+    search_range = search_max-search_min
+    rng = Xorshift(*rng.getState())
+    rng.advances(search_min)
+
+    gen_range = search_range+sum(pl_intervals)+1
+    #ポケモンの瞬き間隔の前計算
+    pk_intervals = [randrange(r,3,12)+blinktime for r in Xorshift(*rng.getState()).getNextRandSequence(gen_range)]
+    
+    #瞬きが生じるような乱数値のindexlistの作成
+    blink_indices = [i for (i,r) in enumerate(Xorshift(*rng.getState()).getNextRandSequence(search_range)) if r&0b1110 == 0]
+    indices_set = set(blink_indices)
+
+    for i in range(len(blink_indices)):
+        starting = 0.0
+        while starting < 12.0:
+            pk_timer = starting
+            offset = 0
+            t = 0.0
+            prev_idx = blink_indices[i]
+            j = prev_idx
+            expected = []
+            while len(expected)<n:
+                t += 61/60
+                j += 1
+                if pk_timer<t:#ポケモンの瞬き発生時
+                    pk_timer += pk_intervals[j]
+                    j += 1
+                    offset += 1
+                if j in indices_set:#主人公の瞬き発生時
+                    intvl = j - prev_idx - offset
+                    expected.append(intvl)
+                    offset = 0
+                    prev_idx = j
+            expected = tuple(expected)
+            if pl_intervals==expected:
+                found_idx = search_min+j
+                print(f"found at:{found_idx}, t = {t}, pk_timer = {pk_timer}")
+                next_pk_blink = pk_timer-t
+                result = Xorshift(*rng.getState())
+                result.advances(found_idx+1)
+                return result, next_pk_blink
+ 
+            starting += 0.1
+    
+    return None, None
+
+def previous(rng:Xorshift, rawintervals:List[int], search_max=10**5, search_min=0)->Xorshift:
+    """Reidentify Xorshift state via intervals with noise in the background"""
+
+
+    intervals = rawintervals[1:]
+    blink_bools = [True]
+    for interval in intervals:
+        blink_bools.extend([False]*(interval-1))
+        blink_bools.append(True)
+    reident_time = len(blink_bools)
+    possible_length = int(reident_time*4//3)
+
+    possible_advances = []
+    temp_rng = Xorshift(*rng.getState())
+    temp_rng.getNextRandSequence(search_min)
+    blink_rands = [int((r&0b1110)==0) for r in temp_rng.getNextRandSequence(search_max)]
+    for advance in range(search_max-possible_length):
+        blinks = blink_rands[advance:advance+possible_length]
+        i = 0
+        j = 0
+        differences = []
+        try:
+            while i < reident_time:
+                diff = 0
+                while blink_bools[i] != blinks[j]:
+                    diff += 1
+                    j += 1
+                if diff != 0:
+                    differences.append(diff)
+                j += 1
+                i += 1
+        except IndexError:
+            continue
+        pokemon_blink_count = sum(differences)
+        possible_advances.append((pokemon_blink_count,advance))
+    correct = min(possible_advances)
+    rng.advances(search_min+sum(correct)+reident_time)
+    adv = search_min+sum(correct)+reident_time
+    print(f"found  at advances:{adv}")
+    return rng
+
 def recovByMunchlax(rawintervals:List[float])->Xorshift:
     """Recover the xorshift from the interval of Munchlax blinks.
 
@@ -414,3 +517,105 @@ def recovByMunchlax(rawintervals:List[float])->Xorshift:
     result = Xorshift(*states)
     result.getNextRandSequence(len(intervals))
     return result
+
+def reidentify_by_pokeblink(rng:Xorshift, rawintervals:List[float], search_max=3*10**4, search_min=0, eps=0.1, dt = 0.01)->Tuple[Xorshift, float, float]:
+    """Reidentify Xorshift state via intervals of Pokemon blinks 
+
+    Args:
+        rng (Xorshift): _description_
+        rawintervals (List[float]): _description_
+        search_max (_type_, optional): _description_. Defaults to 3*10**4.
+        search_min (int, optional): _description_. Defaults to 0.
+        eps (float, optional): _description_. Defaults to 0.1.
+        dt (float, optional): _description_. Defaults to 0.01.
+        blinktime (float, optional): _description_. Defaults to 0.285.
+
+    Returns:
+        Tuple[Xorshift, float, float]: reidentified Xorshift, next player blink timing, next pokemon blink timing
+    """
+    player_interval = 1.017
+    blinktime = 0.285
+    observed = rawintervals[1:]
+    n = len(observed)
+
+    #search
+    search_range = search_max-search_min
+    interval_rng = Xorshift(*rng.getState())
+    interval_rng.advances(search_min)
+
+    gen_range = search_range+int(sum(observed))+n+1
+    true_intervals = [randrange(r,3,12)+blinktime for r in interval_rng.getNextRandSequence(gen_range)]
+
+    starting = 0.0
+    while starting < search_range:
+        t = starting
+        frag = True
+        for i in range(n):
+            true_idx = math.ceil(t/player_interval+i)
+            diff = abs(observed[i]-true_intervals[true_idx])
+            if diff>eps:
+                frag = False
+                break
+            t += true_intervals[true_idx]
+
+        if frag:
+            next_pl_blink = math.ceil(t/player_interval)*player_interval -t 
+            
+            true_idx = math.ceil(t/player_interval+n)
+            next_pk_blink = true_intervals[true_idx]
+
+            found_idx = true_idx+search_min+1
+            print(f"found at:{found_idx}")
+            
+            print(f"next player blink:{next_pl_blink}")
+            print(f"next_pokemon blink:{next_pk_blink}")
+            result_rng = Xorshift(*rng.getState())
+            result_rng.advances(found_idx)
+            return (result_rng, next_pl_blink, next_pk_blink)
+        
+        idx = math.ceil(starting/player_interval)
+        diff = abs(observed[0]-true_intervals[idx])
+        if diff>eps:
+            starting += player_interval
+        else:
+            starting += dt
+    
+    return (None, None, None)
+
+def reidentifyByMunchlax(rng:Xorshift, rawintervals:List[float], search_max=10**6, search_min=0, eps=0.1):
+    """reidentify Xorshift state by intervals of observed blinks. 
+    This method is faster than "reidentifyByBlinks" in most cases since it can be reidentified by less blinking.
+
+    Args:
+        rng (Xorshift): [description]
+        rawintervals (List[int]): list of intervals of blinks. 7 or more are recommended.
+        npc (int, optional): [description]. Defaults to 0.
+        search_max ([type], optional): [description]. Defaults to 10**6.
+        search_min (int, optional): [description]. Defaults to 0.
+
+    Returns:
+        Xorshift: [description]
+    """
+    intervals = rawintervals[1:]
+    if search_max<search_min:
+        search_min, search_max = search_max, search_min
+    search_range = search_max - search_min
+
+    prng = Xorshift(*rng.getState())
+    prng.advances(search_min)
+    blinkrands = [randrange(r,3,12)+0.285 for i,r in enumerate(prng.getNextRandSequence(search_range))]
+
+    #search
+    for idx in range(search_range):
+        isSame = True
+        for j in range(len(intervals)):
+            e = blinkrands[idx+j]
+            o = intervals[j]
+            if abs(e-o)>eps:
+                isSame=False
+                break
+        if isSame:
+            print(f"found  at advances:{idx+len(intervals)+search_min}")
+            result = Xorshift(*rng.getState())
+            result.advances(idx+len(intervals)+search_min)
+            return result

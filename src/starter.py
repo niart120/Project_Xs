@@ -126,14 +126,14 @@ def starter_timeline():
     
     #first(?) starly
     advances += 1
-    #blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
-    blink_int = reidentified_rng.rangefloat(3,12) + 0.285
+    blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
+    #blink_int = reidentified_rng.rangefloat(3,12) + 0.285
     heapq.heappush(queue, waituntil+blink_int)
     
     #second(?) starly
     advances += 1
-    #blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
-    blink_int = reidentified_rng.rangefloat(3,12) + 0.285
+    blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
+    #blink_int = reidentified_rng.rangefloat(3,12) + 0.285
     heapq.heappush(queue, waituntil+blink_int)
     print("next massage:'What's going on?!'")
     for _ in range(4):
@@ -143,8 +143,8 @@ def starter_timeline():
         if next_time>0:
             time.sleep(next_time)
 
-        #blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
-        blink_int = reidentified_rng.rangefloat(3,12) + 0.285
+        blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
+        #blink_int = reidentified_rng.rangefloat(3,12) + 0.285
         heapq.heappush(queue, w+blink_int)
         print(f"advances:{advances}, interval:{blink_int}")
 
@@ -162,14 +162,14 @@ def starter_timeline():
         if next_time>0:
             time.sleep(next_time)
 
-        #blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
-        blink_int = reidentified_rng.rangefloat(3,12) + 0.285
+        blink_int = reidentified_rng.range(3.0, 12.0) + 0.285
+        #blink_int = reidentified_rng.rangefloat(3,12) + 0.285
 
         heapq.heappush(queue, w+blink_int)
         print(f"advances:{advances}, interval:{blink_int}")
 
 
 if __name__ == "__main__":
-    #firstspecify()
+    firstspecify()
     #reidentify()
-    starter_timeline()
+    #starter_timeline()

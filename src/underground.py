@@ -43,7 +43,7 @@ def firstspecify():
     if player_eye is None:
         print("path is wrong")
         return
-    blinks, intervals, offset_time = rngtool.tracking_blink(player_eye, 870, 680, 85, 90)
+    blinks, intervals, offset_time = rngtool.tracking_blink(player_eye, 870, 680, 85, 90,cameraID=1)
     prng = rngtool.recov(blinks, intervals)
 
     waituntil = time.perf_counter()
@@ -67,8 +67,8 @@ def reidentify():
 
     npcnum = 1
 
-    observed_blinks, _, offset_time = rngtool.tracking_blink(player_eye, 925, 520, 35, 35, th = 0.8, size=20)
-    reidentified_rng = rngtool.reidentifyByBlinks(Xorshift(*state), observed_blinks, npc=npcnum)
+    _, intervals, offset_time = rngtool.tracking_blink(player_eye, 925, 520, 35, 35, th = 0.8, size=7, cameraID=1)
+    reidentified_rng = rngtool.reidentifyByIntervals(Xorshift(*state), intervals, npc=npcnum)
     
     waituntil = time.perf_counter()
     diff = round(waituntil-offset_time)+1
@@ -112,7 +112,7 @@ def reidentifyInSecretBase():
     if player_eye is None:
         print("path is wrong")
         return
-    blinks, observed_intervals, offset_time = rngtool.tracking_blink(player_eye, 870, 680, 85, 90, size=7)
+    blinks, observed_intervals, offset_time = rngtool.tracking_blink(player_eye, 870, 680, 85, 90, size=7, cameraID=1)
     reidentified_rng = rngtool.reidentifyByIntervals(Xorshift(*state), observed_intervals, npc=0)
     if reidentified_rng is None:
         print("couldn't reidentify state.")
@@ -145,4 +145,5 @@ def reidentifyInSecretBase():
 
 if __name__ == "__main__":
     #firstspecify()
+    #reidentify()
     reidentifyInSecretBase()

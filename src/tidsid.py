@@ -18,11 +18,15 @@ def expr():
     if munch_eye is None:
         print("path is wrong")
         return
-    gombe_intervals = rngtool.tracking_poke_blink(munch_eye, 730, 670, 50, 60, 64)
+    gombe_intervals = rngtool.tracking_poke_blink(munch_eye, 730, 670, 50, 60)
 
-    interval_prng = rngtool.recovByMunchlax(gombe_intervals)
+    interval_prng, offset_time = rngtool.recovByMunchlax(gombe_intervals)
     state = interval_prng.getState()
+
+    print("state(64bit 64bit)")
     print(hex(state[0]<<32|state[1]), hex(state[2]<<32|state[3]))
+    print("state(32bit 32bit 32bit 32bit)")
+    print(*[hex(s) for s in state])
 
     #timecounter reset
     advances = 0
@@ -33,8 +37,44 @@ def expr():
     #ID予測開始
     while True:
         advances += 1
-        interval = interval_prng.rangefloat(3.0,12.0) + 0.285
-        #interval = interval_prng.range(3.0,12.0) + 0.285
+        #interval = interval_prng.rangefloat(3.0,12.0) + 0.285
+        interval = interval_prng.range(3.0,12.0) + 0.285
+        waituntil += interval
+
+        id_r = id_prng.next()
+        g7tid, tid, sid = getids(id_r)
+        print(f"advances:{advances}, g7tid:{g7tid}, tid:{hex(tid)}, sid:{hex(sid)}")
+        
+        next_time = waituntil - time.perf_counter() or 0
+        time.sleep(next_time)
+
+def reidentify():
+    print("input xorshift state(state[0] state[1] state[2] state[3])")
+    state = [int(x,0) for x in input().split()]
+    munch_eye = cv2.imread("./munchlax/eye.png", cv2.IMREAD_GRAYSCALE)
+    if munch_eye is None:
+        print("path is wrong")
+        return
+    gombe_intervals, offset_time = rngtool.tracking_poke_blink(munch_eye, 730, 670, 50, 60, size=5)
+
+    interval_prng = rngtool.reidentifyByMunchlax(Xorshift(*state),gombe_intervals)
+    state = interval_prng.getState()
+
+    print("state(64bit 64bit)")
+    print(hex(state[0]<<32|state[1]), hex(state[2]<<32|state[3]))
+    print("state(32bit 32bit 32bit 32bit)")
+    print(*[hex(s) for s in state])
+
+    #timecounter reset
+    advances = 0
+    id_prng = Xorshift(*interval_prng.getState())
+    id_prng.next()
+    
+    waituntil = time.perf_counter()
+    #ID予測開始
+    while True:
+        advances += 1
+        interval = interval_prng.range(3.0,12.0) + 0.285
         waituntil += interval
 
         id_r = id_prng.next()
@@ -94,3 +134,4 @@ def main():
 
 if __name__ == "__main__":
     expr()
+    #reidentify()
